@@ -1,0 +1,11 @@
+- name: Grant SYSTEM_ALERT_WINDOW permission to VirtualSoftKeys
+  delegate_to: localhost
+  ansible.builtin.command: "{{ adb_cmd }} shell appops set tw.com.daxia.virtualsoftkeys SYSTEM_ALERT_WINDOW allow"
+  ignore_errors: yes
+
+- name: 直接通过 ADB 启用 VirtualSoftKeys 的无障碍服务 (跳过遮挡限制)
+  delegate_to: localhost
+  ansible.builtin.shell: |
+    {{ adb_cmd }} shell settings put secure enabled_accessibility_services tw.com.daxia.virtualsoftkeys/.service.ServiceFloating
+    {{ adb_cmd }} shell settings put secure accessibility_enabled 1
+  ignore_errors: true

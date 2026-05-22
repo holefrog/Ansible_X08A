@@ -82,12 +82,23 @@ ansible-playbook factory_reset.yml
 
 ### 3.2 应用安装 (`roles/apps`)
 
-1. **推送系统分区应用**：将 `roles/apps/files/` 下文件名**不含** `newpipe`、`firefox`、`launcher`、`fcitx`（均大小写不敏感）的 APK 推送至 `/system/app/`，设置 `644` 权限，然后执行软重启（`stop` / `start`）并轮询等待包管理器就绪。
-2. **安装常规应用**：将文件名**含有** `newpipe`、`firefox`、`launcher`、`fcitx` 的 APK 通过 `adb install -r` 安装到用户空间（`/data` 分区），方便日后独立更新。
+1. **推送系统分区应用**：将 `roles/apps/files/` 下文件名**不含** `newpipe`、`firefox`、`launcher`、`fcitx`、`virtualsoftkeys`（均大小写不敏感）的 APK 推送至 `/system/app/`，设置 `644` 权限，然后执行软重启（`stop` / `start`）并轮询等待包管理器就绪。
+2. **安装常规应用**：将文件名**含有** `newpipe`、`firefox`、`launcher`、`fcitx`、`virtualsoftkeys` 的 APK 通过 `adb install -r` 安装到用户空间（`/data` 分区），方便日后独立更新。
 3. **配置屏幕保护程序**：将 `FSClock` 注册为系统屏保服务，设定为睡眠/底座模式触发，并将息屏超时设为 10 分钟（600000 毫秒）。
 4. **配置桌面启动器**：启用 `Niagara Launcher`（`bitpit.launcher`），将其设为系统默认桌面，并停用 `com.xiaomi.micolauncher` 防止冲突。
 5. **推送 VPN 配置文件**：将 `AC3100.ovpn` 推送至设备的 `/storage/sdcard0/Download/` 目录。
 6. **配置 Fcitx5 输入法**：启用 `org.fcitx.fcitx5.android` 并将其设置为系统默认输入法。
+
+### 4.5 VirtualSoftKeys (虚拟按键悬浮球) 配置
+悬浮球应用 (`tw.com.daxia.virtualsoftkeys`) 受限于 Mico OS 的无障碍服务限制和权限阉割，Ansible 部署后需确保以下指令已执行以强制授权并保活：
+1. **授予悬浮窗权限**（绕过系统阉割的设置界面）：
+   `adb shell appops set tw.com.daxia.virtualsoftkeys SYSTEM_ALERT_WINDOW allow`
+2. **激活无障碍服务**（若界面无法开启）：
+   `adb shell settings put secure enabled_accessibility_services tw.com.daxia.virtualsoftkeys/.service.ServiceFloating`
+   `adb shell settings put secure accessibility_enabled 1`
+3. **加入后台白名单**（防止系统杀死限制）：
+   `adb shell dumpsys deviceidle whitelist +tw.com.daxia.virtualsoftkeys`
+   *(注：仍建议在 4.4 所述的“快霸”中双重确认已允许其后台运行。由于应用较老，若出现严重兼容问题请卸载并替换为 Key Mapper。)*
 
 ---
 
