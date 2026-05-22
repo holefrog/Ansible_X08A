@@ -87,8 +87,18 @@ ansible-playbook factory_reset.yml
 3. **配置屏幕保护程序**：将 `FSClock` 注册为系统屏保服务，设定为睡眠/底座模式触发，并将息屏超时设为 10 分钟（600000 毫秒）。
 4. **配置桌面启动器**：启用 `Niagara Launcher`（`bitpit.launcher`），将其设为系统默认桌面，并停用 `com.xiaomi.micolauncher` 防止冲突。
 5. **推送 VPN 配置文件**：将 `AC3100.ovpn` 推送至设备的 `/storage/sdcard0/Download/` 目录。
-6. **配置 Fcitx5 输入法**：启用 `org.fcitx.fcitx5.android` 并将其设置为系统默认输入法。
+6. **配置 Fcitx5 输入法**：启用 `org.fcitx.fcitx5.android` 并将其设置为系统默认输入法。之后通过直接修改 `/data/system/users/0/settings_secure.xml`，将 `default_input_method` 与 `enabled_input_methods` 的 `value` 和 `defaultValue` 同时写入 fcitx5，确保重启后设置不被覆盖。
 
+   **关于开机自启的坑**
+
+   曾尝试通过 `init.rc` 服务加 `init.d` 脚本在开机后自动执行 `ime enable` / `ime set`，该方案完全无效，原因如下：
+
+   - **`.rc` 文件运行时推送无效**：Android 的 `init` 进程只在系统启动最早期扫描一次 `/system/etc/init/`。Ansible 部署时系统已在运行，推进去的 `.rc` 文件永远不会被读取，服务从未注册，脚本从未执行。
+   - **fcitx5 没有 `BOOT_COMPLETED` receiver**：无法靠应用自身在开机后自动启动并重新注册。
+   - **根本原因在 `settings_secure.xml`**：`InputMethodManagerService` 在每次启动时以 `defaultValue` 字段为基准重置输入法配置。该文件的 `defaultValue` 初始值为搜狗（或空），导致无论运行时如何通过 `ime set` 修改，重启后必然被覆盖还原。
+
+   **正确解法**：在 fcitx5 安装完成后，用 `sed` 直接修改 `/data/system/users/0/settings_secure.xml`，将两个字段的 `value` 与 `defaultValue` 同时替换为 fcitx5，从根本上替换系统的重置基准值。
+   
 ### 4.5 VirtualSoftKeys (虚拟按键悬浮球) 配置
 悬浮球应用 (`tw.com.daxia.virtualsoftkeys`) 受限于 Mico OS 的无障碍服务限制和权限阉割，Ansible 部署后需确保以下指令已执行以强制授权并保活：
 1. **授予悬浮窗权限**（绕过系统阉割的设置界面）：
