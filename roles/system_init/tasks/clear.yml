@@ -1,0 +1,28 @@
+---
+# 禁用 MiVpmService 服务：由于未静音麦克风时该服务会导致 CPU 占用过高，通过取消执行权限将其彻底禁用
+- name: 禁用 MiVpmService 以防止 CPU 占用过高
+  ansible.builtin.command: "{{ adb_cmd }} shell {{ item }}"
+  loop:
+    - "su 0 mount -o rw,remount /"
+    - chmod 000 /system/bin/MiVpmService
+  ignore_errors: yes
+
+
+
+# 批量卸载预装的无用应用 (Bloatware)
+- name: 批量卸载预装的无用应用 (Bloatware)
+  ansible.builtin.command: "{{ adb_cmd }} shell pm uninstall --user 0 {{ item }}"
+  loop: "{{ bloatware_apps }}"
+  register: uninstall_result
+  changed_when: "'Success' in uninstall_result.stdout"
+  failed_when: false
+
+
+- name: 通过 ADB 禁用顽固的系统应用
+  ansible.builtin.command: "{{ adb_cmd }} shell pm disable-user --user 0 {{ item }}"
+  loop: "{{ disabled_apps }}"
+  register: disable_results
+  # pm disable-user 执行成功时，stdout 通常会包含 "Package <包名> new state: disabled-user"
+  changed_when: "'disabled-user' in disable_results.stdout"
+  # 防止因为某个应用已经被完全卸载或不存在而导致整个 Ansible 任务中断
+  failed_when: false

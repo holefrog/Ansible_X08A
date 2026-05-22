@@ -1,0 +1,30 @@
+---
+- name: 启用 Fcitx5 输入法
+  ansible.builtin.command: "{{ adb_cmd }} shell ime enable org.fcitx.fcitx5.android/.input.FcitxInputMethodService"
+  ignore_errors: true
+
+- name: 将 Fcitx5 设置为默认输入法
+  ansible.builtin.command: "{{ adb_cmd }} shell ime set org.fcitx.fcitx5.android/.input.FcitxInputMethodService"
+
+- name: 将开机脚本推送到设备临时目录
+  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/99fcitx5.sh' /data/local/tmp/99fcitx5.sh"
+
+- name: 配置 init.d 传统方式开机自启
+  ansible.builtin.shell: |
+    {{ adb_cmd }} shell "mkdir -p /system/etc/init.d && cp /data/local/tmp/99fcitx5.sh /system/etc/init.d/99fcitx5 && chmod +x /system/etc/init.d/99fcitx5"
+  ignore_errors: true
+
+- name: 将 RC 服务配置文件推送到设备临时目录
+  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/setup_fcitx5.rc' /data/local/tmp/setup_fcitx5.rc"
+
+- name: 配置 Android Init RC 服务开机自启 (解决 init.d 不生效问题)
+  ansible.builtin.command: "{{ adb_cmd }} shell cp /data/local/tmp/setup_fcitx5.rc /system/etc/init/setup_fcitx5.rc"
+  ignore_errors: true
+
+- name: 设置 RC 服务配置文件权限
+  ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 /system/etc/init/setup_fcitx5.rc"
+  ignore_errors: true
+
+- name: 清理临时推送的脚本文件
+  ansible.builtin.command: "{{ adb_cmd }} shell rm /data/local/tmp/99fcitx5.sh /data/local/tmp/setup_fcitx5.rc"
+  ignore_errors: true

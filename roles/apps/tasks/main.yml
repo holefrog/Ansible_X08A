@@ -1,0 +1,18 @@
+---
+# 引入所有应用（包含系统级推送和常规安装）的统一处理任务
+- include_tasks: push_system_app.yml
+
+# Screensaver 
+- include_tasks: screensaver.yml
+
+# 引入桌面启动器安装与配置任务
+- include_tasks: launcher.yml
+
+# 引入配置文件推送任务
+- include_tasks: push_ovpn.yml
+
+# 引入 Fcitx5 默认输入法配置任务
+- include_tasks: fcitx5.yml
+
+# 统一关闭所有安装应用的电源优化
+- include_tasks: battery.yml

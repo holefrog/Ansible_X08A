@@ -1,0 +1,155 @@
+# Android / Mico Device Automation Setup
+
+本项目基于 Ansible 自动化工具，旨在将安卓设备（如小米音箱、Android TV 等）进行深度的纯净版改造。
+包含从恢复出厂设置、卸载内置自带广告软件（Debloat）、将第三方应用转为系统应用安装（节省空间），到全自动配置自定义桌面启动器与屏幕保护程序的完整流程。
+
+---
+
+## 0. 目标设备规格 (Target Device: XiaoAi X08A)
+
+| 参数 | 规格 |
+|------|------|
+| 型号 | 小米小爱触屏音箱 8（XiaoAi X08A） |
+| 屏幕 | 8 英寸 IPS 触摸屏，1280 × 800，横屏，多点触控 |
+| 操作系统 | Android 8.1.0 (API Level 28)，深度定制 Mico OS |
+| 处理器 | MediaTek MT8167A（四核 Cortex-A35，1.5GHz） |
+| 内存 | 1GB / 2GB LPDDR3 |
+| 存储 | 8GB eMMC（预装系统占用过半，`/data` 可用空间极少） |
+| Wi-Fi | 2.4GHz / 5GHz 双频（802.11 b/g/n/ac） |
+| 蓝牙 | Bluetooth 5.0（含 Mesh 网关） |
+| 其他 | 前置摄像头、全频扬声器、远场麦克风阵列 |
+
+> **存储吃紧是核心约束**：预装 Mico 系统和应用占用超过一半容量，因此本项目将第三方 APK 直接推送到 `/system/app/` 而非 `/data`，以最大化用户可用空间。
+
+---
+
+## 1. 擦除数据与恢复出厂设置 (Factory Reset)
+
+如果是重新配置设备，建议先清空所有数据。你可以选择手动操作，或者在已开启 ADB Root 的情况下使用 Ansible 脚本。
+
+### 方式一：实体按键手动双清
+1. 同时按住 `Vol+` 和 `Vol-` 键。
+2. 插入电源开机。
+3. 保持按住直到屏幕显示 "Mi" Logo，系统将进入 Recovery 自动清空数据。
+4. 大概要等待5分钟时间才会进入系统。如果一直卡在转圈，重新插一次电源就进入系统了。
+
+### 方式二：使用 Ansible 脚本（需设备已连接 ADB 且授权）
+直接在终端执行以下剧本，按提示输入大写 `WIPE` 确认即可自动重启清空数据：
+```bash
+ansible-playbook factory_reset.yml
+```
+
+---
+
+## 2. 初始开机向导 (Initial Setup)
+
+恢复出厂后，需要手动完成基础的系统引导过程：
+1. **连接 WIFI**：按照屏幕提示连接网络。
+2. **登录账号**：登录 Mi App。
+3. **授权登录**：完成设备与账号的绑定。
+4. **开启 ADB 调试**：在设置中连续点击系统版本号开启开发者模式，并允许通过网络/USB进行 ADB 调试。
+
+⚠️ **【极度重要】**：必须**禁用麦克风**！否则 `MiVpmService` 进程将会满载消耗所有 CPU 资源导致设备卡顿断网。
+* **操作方法**：从屏幕顶部下拉打开内置设置面板，点击静音麦克风。
+* *(注：每次手动重启设备后，都需要重新执行此静音操作)*
+
+---
+
+## 3. Ansible 自动化部署 (Automated Installation)
+
+将需要安装的 APK 放置在 `roles/apps/files/` 目录下，配置好目标设备的 IP 地址后，运行主控 Playbook：
+
+```bash
+./apply.sh
+```
+
+脚本将按以下顺序自动完成操作：
+
+### 3.1 系统初始化 (`roles/system_init`)
+
+1. **获取 Root 权限并挂载读写分区**：执行 `adb root` 与 `adb remount`，为后续操作准备环境。
+2. **设置时区**：开启自动时间/时区同步，并将系统时区强制设置为 `America/Vancouver`。
+3. **禁用 MiVpmService**：取消 `/system/bin/MiVpmService` 的执行权限，彻底阻止其消耗 CPU。
+4. **批量卸载预装垃圾软件（Bloatware）**：通过 `pm uninstall --user 0` 移除以下应用：
+   - `com.xiaomi.micloud.sdk`、`com.miui.weather2`、`com.baidu.map.location`
+   - `com.ktcp.aiagent`、`com.miui.hybrid.soundbox`、`com.qiyi.video.speaker`
+   - `com.tencent.qqlive.audiobox`、`com.xiaoxun.xun`、`com.xiaomi.mico.feedback`
+   - `com.xiaomi.mico.gallery`、`com.xiaomi.mico.romupdate`、`com.xiaomi.mico.screensaver`
+   - `com.youku.iot`、`com.sohu.inputmethod.sogou.tv`
+5. **停用顽固系统应用**：无法完全卸载的应用通过 `pm disable-user --user 0` 停用：
+   - `com.xiaomi.mico.appstore`、`com.xiaomi.smarthome`、`com.xiaomi.mico.ai`
+6. **推送壁纸**：将 `Marvin.jpg` 推送至 `/data/system/users/0/wallpaper` 与 `/system/media`，并修复文件权限（`chown system:system` + `chmod 644`）防止桌面重置壁纸。
+
+### 3.2 应用安装 (`roles/apps`)
+
+1. **推送系统分区应用**：将 `roles/apps/files/` 下文件名**不含** `newpipe`、`firefox`、`launcher`、`fcitx`（均大小写不敏感）的 APK 推送至 `/system/app/`，设置 `644` 权限，然后执行软重启（`stop` / `start`）并轮询等待包管理器就绪。
+2. **安装常规应用**：将文件名**含有** `newpipe`、`firefox`、`launcher`、`fcitx` 的 APK 通过 `adb install -r` 安装到用户空间（`/data` 分区），方便日后独立更新。
+3. **配置屏幕保护程序**：将 `FSClock` 注册为系统屏保服务，设定为睡眠/底座模式触发，并将息屏超时设为 10 分钟（600000 毫秒）。
+4. **配置桌面启动器**：启用 `Niagara Launcher`（`bitpit.launcher`），将其设为系统默认桌面，并停用 `com.xiaomi.micolauncher` 防止冲突。
+5. **推送 VPN 配置文件**：将 `AC3100.ovpn` 推送至设备的 `/storage/sdcard0/Download/` 目录。
+6. **配置 Fcitx5 输入法**：启用 `org.fcitx.fcitx5.android` 并将其设置为系统默认输入法。
+
+---
+
+## 4. 后续手动配置补充 (Post-Install Configurations)
+
+部分系统级的行为控制及第三方应用配置，需要在 Ansible 部署完成后手动进行：
+
+### 4.1 OpenVPN 代理配置 (Bypass VPN Dialog)
+VPN 应用在首次连接时系统会弹窗请求授权，如果被顶层应用遮挡无法点击 "OK"，可利用 ADB 模拟键盘按键放行：
+1. 在设备端打开 OpenVPN 并导入已推送的 `AC3100.ovpn`。
+2. 点击连接触发授权弹窗。
+3. 在电脑端依次发送以下按键指令（对应：Enter -> Tab -> Tab -> Enter）：
+```bash
+adb shell input keyevent 66
+adb shell input keyevent 61
+adb shell input keyevent 61
+adb shell input keyevent 66
+```
+
+### 4.2 时区与时间修复 (Timezone)
+Ansible 部署时已自动配置时区。如需手动修复，可通过 ADB 强制指定：
+```bash
+adb root
+adb shell settings put global auto_time 1
+adb shell settings put global auto_time_zone 1
+adb shell setprop persist.sys.timezone America/Vancouver
+```
+
+### 4.3 SB Player 设置注意
+**切勿**取消勾选 "Show this screen at launch"。否则该应用的设置界面将在后续启动时彻底隐藏，只能通过清空应用数据才能重新配置。
+
+### 4.4 允许后台运行权限
+前往系统 `Settings -> 快霸`，手动打开需要常驻后台的应用（如代理、保活应用）的后台运行允许权限。
+
+---
+
+## 5. 常见故障排除 (Troubleshooting)
+
+**问题：在系统设置中更改字体/显示大小后，设备陷入无尽的 "Please wait,..." 循环加载。**
+**解决办法**：清除自带设置数据，并通过 ADB 疯狂发送重新拉起 Niagara 桌面的指令打断循环。
+```bash
+adb shell pm clear com.xiaomi.mico.settings
+adb shell pm enable bitpit.launcher
+adb shell pm enable bitpit.launcher
+adb shell pm enable bitpit.launcher
+```
+
+**问题：设置 Niagara Launcher 主题后设备无限重启。**
+**原因**：1.13.4 及以上版本在 XiaoAi X08A (API 28) 设备上运行时，在主题功能路径上引用了 API 33 才有的类。主题功能会崩溃，需使用旧版 APK。
+**解决办法**：⚠️ **【极度重要】切勿在 Niagara Launcher 中设置任何主题！** 更改主题会导致系统界面崩溃并引发设备无限重启。如果已发生无限重启，请尝试使用 ADB 清除桌面数据或重新刷机。
+```bash
+adb shell pm clear bitpit.launcher
+```
+
+**问题：输入法应用运行后不断崩溃。**
+**原因**：输入法不能当成系统应用安装，否则会找不到库文件不断崩溃。
+**解决办法**：APK 文件名须包含 `fcitx` 关键字，Ansible 会自动将其识别为常规应用安装到用户空间（`/data` 分区），不会推送到 `/system/app/`。
+
+
+**问题：Ansible 脚本执行过程中，再次安装Firefox 退出。**
+**原因**：储存空间耗尽，要先删除。
+**解决办法**： 先卸载
+```bash
+adb uninstall org.mozilla.firefox
+```

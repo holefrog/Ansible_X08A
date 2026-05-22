@@ -1,0 +1,4 @@
+---
+# 推送 OpenVPN 配置文件到设备的 Download 目录
+- name: 将 AC3100.ovpn 推送到 Download 目录
+  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/AC3100.ovpn' /storage/sdcard0/Download/"

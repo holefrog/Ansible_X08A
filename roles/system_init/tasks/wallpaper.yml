@@ -1,0 +1,13 @@
+# 将自定义壁纸图片推送到系统目录，替换默认壁纸
+- name: 推送系统壁纸
+  ansible.builtin.command: "{{ adb_cmd }} push {{ item.src }} {{ item.dest }}"
+  loop:
+    - { src: "{{ role_path }}/files/Marvin.jpg", dest: "/data/system/users/0/wallpaper" }
+    - { src: "{{ role_path }}/files/Marvin.jpg", dest: "/system/media" }
+  ignore_errors: yes
+
+- name: 修复壁纸文件权限与属主，防止由于不可读被桌面重置
+  ansible.builtin.command: "{{ adb_cmd }} shell {{ item }}"
+  loop:
+    - chown system:system /data/system/users/0/wallpaper
+    - chmod 644 /data/system/users/0/wallpaper

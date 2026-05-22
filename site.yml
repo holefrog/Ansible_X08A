@@ -1,0 +1,10 @@
+---
+- name: 通过 ADB 自动化配置安卓设备
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    adb_cmd: "adb -s 192.168.50.180:5555"
+  roles:
+    - system_init
+    - apps

@@ -1,0 +1,10 @@
+---
+# 配置屏幕保护程序 (使用 FSClock)，设置触发条件，并设定息屏超时时间 (600000 毫秒 = 10 分钟)
+- name: 配置屏幕保护程序 (FSClock)
+  ansible.builtin.command: "{{ adb_cmd }} shell {{ item }}"
+  loop:
+    - settings put secure screensaver_components systems.sieber.fsclock/.FullscreenDream
+    - settings put secure screensaver_enabled 1
+    - settings put secure screensaver_activate_on_sleep 1
+    - settings put secure screensaver_activate_on_dock 1
+    - settings put system screen_off_timeout 600000

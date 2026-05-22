@@ -1,0 +1,48 @@
+---
+# 尝试主动连接设备，防止由于网络超时或刚开机导致的 device offline
+- name: 主动连接 ADB 设备
+  ansible.builtin.shell: |
+    ADB_BIN=$(echo "{{ adb_cmd }}" | awk '{print $1}')
+    IP=$(echo "{{ adb_cmd }}" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:[0-9]+)?')
+    if [ -n "$IP" ]; then
+      $ADB_BIN connect $IP
+    fi
+  changed_when: false
+  ignore_errors: yes
+
+- name: 检查 ADB 设备在线状态
+  ansible.builtin.command: "{{ adb_cmd }} get-state"
+  register: adb_state
+  changed_when: false
+  ignore_errors: yes
+
+- name: 验证设备是否在线（离线时中断并显示明确错误）
+  ansible.builtin.fail:
+    msg: |
+      【连接失败】无法与安卓设备建立通信，设备处于离线 (offline) 或未授权状态。
+      请排查以下原因：
+      1. 屏幕上是否弹出“允许 USB/网络 调试”的对话框？（若是首次连接，请勾选“一律允许”并同意）
+      2. 设备是否进入了深度休眠导致 Wi-Fi 断网？（尝试点亮一下设备屏幕）
+      3. 设备的 IP 地址是否发生了变化？（请在设备网络设置中确认是否仍为 {{ adb_cmd | regex_search('[0-9]{1,3}(\.[0-9]{1,3}){3}') }}）
+  when: adb_state.rc != 0 or 'device' not in adb_state.stdout
+
+# 确保 ADB 以 root 权限运行，以便执行底层系统配置
+- name: 确保 ADB 以 root 权限运行
+  ansible.builtin.command: "{{ adb_cmd }} root"
+  register: adb_root
+  changed_when: "'restarting adbd as root' in adb_root.stdout"
+
+# 将系统分区重新挂载为读写模式，从而允许修改 /system 目录下的文件
+- name: 将系统分区重新挂载为读/写模式
+  ansible.builtin.command: "{{ adb_cmd }} remount"
+  register: remount_result
+  changed_when: "'remount succeeded' in remount_result.stdout"
+
+
+# 开启自动时间/时区同步，并将系统时区强制设置为温哥华 (America/Vancouver)
+- name: 设置时区为 America/Vancouver
+  ansible.builtin.command: "{{ adb_cmd }} shell {{ item }}"
+  loop:
+    - settings put global auto_time 1
+    - settings put global auto_time_zone 1
+    - setprop persist.sys.timezone America/Vancouver

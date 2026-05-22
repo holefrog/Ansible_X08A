@@ -1,0 +1,24 @@
+---
+# 预装无用应用卸载列表
+bloatware_apps:
+  - com.xiaomi.micloud.sdk
+  - com.miui.weather2
+  - com.baidu.map.location
+  - com.ktcp.aiagent
+  - com.miui.hybrid.soundbox
+  - com.qiyi.video.speaker
+  - com.tencent.qqlive.audiobox
+  - com.xiaoxun.xun
+  - com.xiaomi.mico.feedback
+  - com.xiaomi.mico.gallery
+  - com.xiaomi.mico.romupdate
+  - com.xiaomi.mico.screensaver
+  - com.youku.iot
+  - com.sohu.inputmethod.sogou.tv 
+
+
+# 无法卸载但可以安全停用的系统/生态应用
+disabled_apps:
+  - com.xiaomi.mico.appstore
+  - com.xiaomi.smarthome
+  - com.xiaomi.mico.ai 

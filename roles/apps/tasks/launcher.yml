@@ -1,0 +1,13 @@
+---
+# 启用 Niagara 桌面，并将其配置为系统默认的桌面启动器 (Home Activity)
+- name: 启用 Niagara 桌面并设为默认启动器
+  ansible.builtin.command: "{{ adb_cmd }} shell {{ item }}"
+  loop:
+    - pm enable bitpit.launcher
+    - cmd package set-home-activity bitpit.launcher/.ui.HomeActivity
+
+# 禁用设备自带的默认 Mico 桌面，防止其与 Niagara 桌面冲突
+- name: 禁用默认的 Mico 桌面
+  ansible.builtin.command: "{{ adb_cmd }} shell pm disable-user --user 0 com.xiaomi.micolauncher"
+  register: disable_result
+  changed_when: "'disabled-user' in disable_result.stdout"
