@@ -6,25 +6,12 @@
 - name: 将 Fcitx5 设置为默认输入法
   ansible.builtin.command: "{{ adb_cmd }} shell ime set org.fcitx.fcitx5.android/.input.FcitxInputMethodService"
 
-- name: 将开机脚本推送到设备临时目录
-  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/99fcitx5.sh' /data/local/tmp/99fcitx5.sh"
 
-- name: 配置 init.d 传统方式开机自启
+- name: 将 fcitx5 固化为系统默认输入法 (修改 defaultValue)
   ansible.builtin.shell: |
-    {{ adb_cmd }} shell "mkdir -p /system/etc/init.d && cp /data/local/tmp/99fcitx5.sh /system/etc/init.d/99fcitx5 && chmod +x /system/etc/init.d/99fcitx5"
-  ignore_errors: true
-
-- name: 将 RC 服务配置文件推送到设备临时目录
-  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/setup_fcitx5.rc' /data/local/tmp/setup_fcitx5.rc"
-
-- name: 配置 Android Init RC 服务开机自启 (解决 init.d 不生效问题)
-  ansible.builtin.command: "{{ adb_cmd }} shell cp /data/local/tmp/setup_fcitx5.rc /system/etc/init/setup_fcitx5.rc"
-  ignore_errors: true
-
-- name: 设置 RC 服务配置文件权限
-  ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 /system/etc/init/setup_fcitx5.rc"
-  ignore_errors: true
-
-- name: 清理临时推送的脚本文件
-  ansible.builtin.command: "{{ adb_cmd }} shell rm /data/local/tmp/99fcitx5.sh /data/local/tmp/setup_fcitx5.rc"
-  ignore_errors: true
+    {{ adb_cmd }} shell "sed -i \
+      's|name=\"default_input_method\" value=\"[^\"]*\" package=\"android\" defaultValue=\"[^\"]*\"|name=\"default_input_method\" value=\"org.fcitx.fcitx5.android/.input.FcitxInputMethodService\" package=\"android\" defaultValue=\"org.fcitx.fcitx5.android/.input.FcitxInputMethodService\"|g' \
+      /data/system/users/0/settings_secure.xml"
+    {{ adb_cmd }} shell "sed -i \
+      's|name=\"enabled_input_methods\" value=\"[^\"]*\" package=\"android\" defaultValue=\"[^\"]*\"|name=\"enabled_input_methods\" value=\"org.fcitx.fcitx5.android/.input.FcitxInputMethodService\" package=\"android\" defaultValue=\"org.fcitx.fcitx5.android/.input.FcitxInputMethodService\"|g' \
+      /data/system/users/0/settings_secure.xml"

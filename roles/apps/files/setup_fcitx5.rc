@@ -1,8 +1,0 @@
-service setup_fcitx5 /system/bin/sh /system/etc/init.d/99fcitx5
-    disabled
-    user root
-    group root
-    oneshot
-
-on property:sys.boot_completed=1
-    start setup_fcitx5
