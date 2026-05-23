@@ -23,8 +23,7 @@
   ansible.builtin.command: "{{ adb_cmd }} shell cmd package resolve-activity -c android.intent.category.HOME -a android.intent.action.MAIN"
   register: check_launcher
   changed_when: false
-  # 请将 'YOUR_LAUNCHER_PACKAGE' 替换为您实际的 Launcher 包名 (例如 'com.teslacoilsw.launcher')
-  failed_when: "'YOUR_LAUNCHER_PACKAGE' not in check_launcher.stdout"
+  failed_when: "'bitpit.launcher' not in check_launcher.stdout"
 
 - name: 检查虚拟软键盘 (Virtual Soft Keys) 应用是否已安装
   ansible.builtin.command: "{{ adb_cmd }} shell pm list packages YOUR_VIRTUAL_KEY_PACKAGE"
