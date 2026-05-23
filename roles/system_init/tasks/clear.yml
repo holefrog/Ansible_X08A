@@ -9,12 +9,29 @@
 
 
 
-# 批量卸载预装的无用应用 (Bloatware)
-- name: 批量卸载预装的无用应用 (Bloatware)
-  ansible.builtin.command: "{{ adb_cmd }} shell pm uninstall --user 0 {{ item }}"
+# 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
+- name: 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
+  ansible.builtin.shell: |
+    # 1. 获取应用路径
+    APK_PATHS=$({{ adb_cmd }} shell pm path {{ item }} | sed -n 's/^package://p' | tr -d '\r')
+    
+    # 2. 卸载应用 (对当前用户)
+    {{ adb_cmd }} shell pm uninstall --user 0 {{ item }}
+    
+    # 3. 删除 APK 或整个应用目录以回收空间
+    for APK_PATH in $APK_PATHS; do
+      if [ -n "$APK_PATH" ]; then
+        DIR_PATH=$(dirname "$APK_PATH")
+        if [ "$DIR_PATH" = "/system/app" ] || [ "$DIR_PATH" = "/system/priv-app" ] || [ "$DIR_PATH" = "/vendor/app" ] || [ "$DIR_PATH" = "/product/app" ]; then
+          {{ adb_cmd }} shell "su 0 rm -f '$APK_PATH'"
+        elif [ "$DIR_PATH" != "/" ] && [ "$DIR_PATH" != "." ]; then
+          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'"
+        fi
+      fi
+    done
   loop: "{{ bloatware_apps }}"
   register: uninstall_result
-  changed_when: "'Success' in uninstall_result.stdout"
+  changed_when: false
   failed_when: false
 
 
