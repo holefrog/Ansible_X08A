@@ -14,25 +14,32 @@
   register: space_before
   changed_when: false
 
-# 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
-- name: 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
+# 卸载并强删预装应用 (Bloatware) 的底层文件，为 /system 分区腾出空间供后续 push 自己的 apk 使用
+- name: 批量卸载预装应用并强删底层文件释放 /system 空间
   ansible.builtin.shell: |
-    # 1. 获取应用路径
+    # 1. 获取应用路径 (必须在卸载前获取)
     APK_PATHS=$({{ adb_cmd }} shell pm path {{ item }} | sed -n 's/^package://p' | tr -d '\r')
     
-    # 2. 卸载应用 (对当前用户)
+    # 2. 卸载应用 (清理 /data 分区生成的缓存和数据)
     {{ adb_cmd }} shell pm uninstall --user 0 {{ item }}
     
-    # 3. 删除 APK 或整个应用目录以回收空间
-    for APK_PATH in $APK_PATHS; do
-      if [ -n "$APK_PATH" ]; then
-        DIR_PATH=$(dirname "$APK_PATH")
-        if [ "$DIR_PATH" = "/system/app" ] || [ "$DIR_PATH" = "/system/priv-app" ] || [ "$DIR_PATH" = "/vendor/app" ] || [ "$DIR_PATH" = "/product/app" ]; then
-          {{ adb_cmd }} shell "su 0 rm -f '$APK_PATH'"
-        elif [ "$DIR_PATH" != "/" ] && [ "$DIR_PATH" != "." ]; then
-          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'"
-        fi
-      fi
+    # 3. 极其谨慎地删除底层系统文件 (防变砖安全校验)
+    echo "$APK_PATHS" | while read -r APK_PATH; do
+      [ -z "$APK_PATH" ] && continue
+      
+      DIR_PATH=$(dirname "$APK_PATH")
+      
+      # 使用白名单严格限制可删除的目录范围，绝不允许误删系统关键目录
+      case "$DIR_PATH" in
+        /system/app|/system/priv-app|/vendor/app|/vendor/priv-app|/product/app|/product/priv-app|/oem/app)
+          {{ adb_cmd }} shell "su 0 rm -f '$APK_PATH'" ;;
+        /system/app/*|/system/priv-app/*|/vendor/app/*|/vendor/priv-app/*|/product/app/*|/product/priv-app/*|/oem/app/*)
+          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'" ;;
+        /data/app/*)
+          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'" ;;
+        *)
+          echo "Safety warning: Skipping deletion for unlisted or critical path: $DIR_PATH" ;;
+      esac
     done
   loop: "{{ bloatware_apps }}"
   register: uninstall_result

@@ -32,6 +32,38 @@
   register: adb_root
   changed_when: "'restarting adbd as root' in adb_root.stdout"
 
+# 禁用 dm-verity 系统验证。这对于修改 /system 分区极其重要，否则修改后重启可能导致设备变砖
+- name: 禁用 dm-verity (防止修改系统分区后启动失败)
+  ansible.builtin.command: "{{ adb_cmd }} disable-verity"
+  register: verity_result
+  changed_when: "'reboot' in verity_result.stdout.lower() and 'already disabled' not in verity_result.stdout.lower()"
+  failed_when: false
+
+# 如果上一步提示需要重启，则自动执行重启并等待设备重新上线
+- name: 自动处理 disable-verity 后的重启需求
+  when: verity_result.changed
+  block:
+    - name: 重启设备以使 disable-verity 生效
+      ansible.builtin.command: "{{ adb_cmd }} reboot"
+
+    - name: 等待设备断开连接 (避免设备还没断网就开始轮询)
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: 轮询等待设备重新上线并重新获取 Root 权限
+      ansible.builtin.shell: |
+        ADB_BIN=$(echo "{{ adb_cmd }}" | awk '{print $1}')
+        IP=$(echo "{{ adb_cmd }}" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:[0-9]+)?')
+        if [ -n "$IP" ]; then
+          $ADB_BIN connect $IP >/dev/null 2>&1
+        fi
+        {{ adb_cmd }} root
+      register: reboot_ready
+      until: reboot_ready.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
 # 将系统分区重新挂载为读写模式，从而允许修改 /system 目录下的文件
 - name: 将系统分区重新挂载为读/写模式
   ansible.builtin.command: "{{ adb_cmd }} remount"
