@@ -27,18 +27,24 @@
     echo "$APK_PATHS" | while read -r APK_PATH; do
       [ -z "$APK_PATH" ] && continue
       
+      # 规范化路径，清理连续斜杠，防止类似 /system/app/ 这种极端路径绕过后续校验
+      APK_PATH=$(echo "$APK_PATH" | tr -s '/')
       DIR_PATH=$(dirname "$APK_PATH")
       
       # 使用白名单严格限制可删除的目录范围，绝不允许误删系统关键目录
       case "$DIR_PATH" in
         /system/app|/system/priv-app|/vendor/app|/vendor/priv-app|/product/app|/product/priv-app|/oem/app)
-          {{ adb_cmd }} shell "su 0 rm -f '$APK_PATH'" ;;
+          {{ adb_cmd }} shell "su 0 rm -f '$APK_PATH'"
+          ;;
         /system/app/*|/system/priv-app/*|/vendor/app/*|/vendor/priv-app/*|/product/app/*|/product/priv-app/*|/oem/app/*)
-          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'" ;;
-        /data/app/*)
-          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'" ;;
+          # 额外验证：目录深度必须大于 2 层（即不能是像 /system/app/ 这样的根目录）
+          DEPTH=$(echo "$DIR_PATH" | tr -cd '/' | wc -c)
+          [ "$DEPTH" -lt 3 ] && echo "Safety ABORT: suspicious shallow path: $DIR_PATH" && continue
+          {{ adb_cmd }} shell "su 0 rm -rf '$DIR_PATH'"
+          ;;
         *)
-          echo "Safety warning: Skipping deletion for unlisted or critical path: $DIR_PATH" ;;
+          echo "Safety warning: Skipping deletion for unlisted or critical path: $DIR_PATH"
+          ;;
       esac
     done
   loop: "{{ bloatware_apps }}"
