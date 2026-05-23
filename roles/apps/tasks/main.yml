@@ -11,11 +11,11 @@
 # 引入配置文件推送任务
 - include_tasks: push_ovpn.yml
 
-
-
 # 统一关闭所有安装应用的电源优化
 - include_tasks: battery.yml
 
-
 # 引入虚拟软键盘安装与配置任务
 - include_tasks: virtual_soft_keys.yml
+
+# 最终状态检查：验证所有关键部署结果
+- include_tasks: status.yml

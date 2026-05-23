@@ -1,0 +1,24 @@
+---
+# 最终状态检查：验证所有关键部署结果
+
+- name: 检查 FSClock 应用是否已成功安装
+  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages systems.sieber.fsclock"
+  register: check_fsclock_installed
+  changed_when: false
+  failed_when: "'systems.sieber.fsclock' not in check_fsclock_installed.stdout"
+
+- name: 检查屏幕保护程序是否配置为 FSClock
+  ansible.builtin.command: "{{ adb_cmd }} shell settings get secure screensaver_components"
+  register: check_screensaver_components
+  changed_when: false
+  failed_when: "'systems.sieber.fsclock/.FullscreenDream' not in check_screensaver_components.stdout"
+
+- name: 检查息屏超时时间是否设置为 300000 毫秒
+  ansible.builtin.command: "{{ adb_cmd }} shell settings get system screen_off_timeout"
+  register: check_screen_timeout
+  changed_when: false
+  failed_when: "'300000' not in check_screen_timeout.stdout"
+
+- name: 打印最终部署成功状态
+  ansible.builtin.debug:
+    msg: "✅ 所有部署检查均已通过！FSClock 已安装，屏保和息屏配置均已生效。"
