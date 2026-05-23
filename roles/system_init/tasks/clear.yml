@@ -9,6 +9,11 @@
 
 
 
+- name: 记录清理前的系统空间
+  ansible.builtin.command: "{{ adb_cmd }} shell df -h /system /data"
+  register: space_before
+  changed_when: false
+
 # 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
 - name: 批量卸载预装的无用应用 (Bloatware) 并删除文件释放空间
   ansible.builtin.shell: |
@@ -33,6 +38,19 @@
   register: uninstall_result
   changed_when: false
   failed_when: false
+
+- name: 记录清理后的系统空间
+  ansible.builtin.command: "{{ adb_cmd }} shell df -h /system /data"
+  register: space_after
+  changed_when: false
+
+- name: 显示系统空间变化
+  ansible.builtin.debug:
+    msg:
+      - "=== 清理前空间 ==="
+      - "{{ space_before.stdout_lines }}"
+      - "=== 清理后空间 ==="
+      - "{{ space_after.stdout_lines }}"
 
 
 - name: 通过 ADB 禁用顽固的系统应用
