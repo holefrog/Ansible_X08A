@@ -89,6 +89,44 @@ ansible-playbook factory_reset.yml
 5. **推送 VPN 配置文件**：将 `AC3100.ovpn` 推送至设备的 `/storage/sdcard0/Download/` 目录。
 6. **配置 Fcitx5 输入法**：启用 `org.fcitx.fcitx5.android` 并将其设置为系统默认输入法。之后通过直接修改 `/data/system/users/0/settings_secure.xml`，将 `default_input_method` 与 `enabled_input_methods` 的 `value` 和 `defaultValue` 同时写入 fcitx5，确保重启后设置不被覆盖。
 
+   ---
+
+   #### 第三方输入法无法在重启后持久化——完整调试记录与结论
+
+   **现象**：每次重启后，`default_input_method` 变为空白，需要手动重新执行 `ime enable` + `ime set`。
+
+   **排查过程**：
+
+   1. **守护脚本方向（无效）**：最初尝试通过 `init.rc` 服务加 `init.d` 脚本在开机后自动执行 `ime enable` / `ime set`。该方案完全无效——`init` 进程只在启动最早期扫描一次 `/system/etc/init/`。Ansible 部署时系统已在运行，推进去的 `.rc` 文件从未被读取，脚本从未执行。
+
+   2. **修改 `settings_secure.xml` 方向（无效）**：发现 `/data/system/users/0/settings_secure.xml` 中的 `defaultValue` 字段是系统重置的基准值，尝试用 `sed` 直接修改。无效——`InputMethodManagerService` 在每次启动时会用内存中的状态重建并覆盖整个文件，运行时写入的内容必然被覆盖。
+
+   3. **搜狗残留方向（部分原因）**：确认搜狗 APK 仍留在 `/system/app/SogouIME/`，`pm uninstall --user 0` 只对 user 0 隐藏，APK 本体未删除。系统启动时扫描到搜狗，用它重建 `defaultValue`。已将搜狗目录物理删除，并在 `clear.yml` 中加入 `rm -rf /system/app/SogouIME` 任务。
+
+   4. **fcitx5 的根本限制（Android 版本）**：删除搜狗后问题依然存在。日志显示：
+      ```
+      InputMethodUtils: No software keyboard is found. systemLocale=en_CA fallbackLocale=null
+      InputMethodManagerService: No default found
+      ```
+      `InputMethodManagerService` 扫描到 fcitx5 但拒绝将其设为默认，原因是 fcitx5 没有声明任何 subtype，`fallbackLocale` 为 null，系统无法匹配当前 locale。查阅源码确认：**fcitx5-android 从 0.0.9 版本才开始暴露 subtypes，且仅对 Android 14+（API 34）生效。本设备为 Android 8.1（API 28），该机制永远不会触发。**
+
+   5. **尝试替换为 Trime（同文输入法）（无效）**：Trime 最低支持 Android 5.0，理论上兼容。先作为普通应用安装到 `/data/app/`——重启后报 `cannot start after reboot until unlock your phone`，Direct Boot 机制阻止了 `/data` 分区的应用在解锁前启动。随后将 Trime APK 及其唯一的 native 库 `librime_jni.so` 推入 `/system/app/` 和 `/system/lib/`，使其成为系统应用。重启后依然空白，日志揭示了根本原因：
+      ```
+      19:45:30 - InputMethodManagerService 启动，imis=[]（Trime 尚未被扫描到）
+      19:45:30 - No default found
+      19:45:34 - Trime 被 PackageManager 扫描到（已晚4秒）
+      ```
+      **Mico OS 的定制启动顺序导致 `InputMethodManagerService` 初始化时 PackageManager 尚未完成对 `/system/app/` 的扫描，系统用空列表完成初始化后不会再触发默认 IME 选择流程。这个问题与搜狗是否存在无关，装进系统分区也无法解决。**
+
+   **结论**：在这台 XiaoAi X08A（Mico OS / Android 8.1）上，任何第三方输入法——无论安装位置是 `/data/app/` 还是 `/system/app/`——都无法在开机时被系统自动设为默认 IME。这是 Mico OS 深度定制的启动时序问题，在不修改系统固件的前提下无解。
+
+   **现行妥协方案**：`ime enable` + `ime set` 保留在 Ansible 的 `fcitx5.yml` 末尾，每次重新部署后自动设置一次。重启后设置会丢失，重跑 `./apply.sh` 即可恢复。如需更快恢复，可单独执行：
+   ```bash
+   adb shell ime enable com.osfans.trime/.ime.core.TrimeInputMethodService
+   adb shell ime set com.osfans.trime/.ime.core.TrimeInputMethodService
+   ```
+
+
    **关于开机自启的坑**
 
    曾尝试通过 `init.rc` 服务加 `init.d` 脚本在开机后自动执行 `ime enable` / `ime set`，该方案完全无效，原因如下：

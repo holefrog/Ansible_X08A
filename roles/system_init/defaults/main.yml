@@ -14,7 +14,6 @@ bloatware_apps:
   - com.xiaomi.mico.romupdate
   - com.xiaomi.mico.screensaver
   - com.youku.iot
-  - com.sohu.inputmethod.sogou.tv 
 
 
 # 无法卸载但可以安全停用的系统/生态应用
