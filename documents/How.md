@@ -94,8 +94,6 @@ adb shell pm list packages
 2. Remove
 ```
 adb root
-# adb shell pm uninstall --user 0 com.sohu.inputmethod.sogou.tv
-
 adb shell pm uninstall --user 0 com.baidu.map.location
 adb shell pm uninstall --user 0 com.ktcp.aiagent
 adb shell pm uninstall --user 0 com.miui.hybrid.soundbox
