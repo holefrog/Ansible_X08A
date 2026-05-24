@@ -47,7 +47,10 @@
     that:
       - "item.pkg in check_battery_opt.stdout"
     fail_msg: "【失败】应用 {{ item.pkg }} 未被成功加入电源优化白名单！"
+    quiet: true
   loop: "{{ all_pkg_names | default([]) }}"
+  loop_control:
+    label: "{{ item.pkg }}"
 
 - name: 检查垃圾应用是否已被彻底卸载 (Bloatware)
   ansible.builtin.command: "{{ adb_cmd }} shell pm list packages {{ item }}"
