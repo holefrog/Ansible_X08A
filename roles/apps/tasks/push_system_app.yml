@@ -42,3 +42,4 @@
   ansible.builtin.command: "{{ adb_cmd }} install -r '{{ role_path }}/files/{{ item.apk }}'"
   loop: "{{ all_pkg_names | default([]) }}"
   when: item.apk is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
+  ignore_errors: yes
