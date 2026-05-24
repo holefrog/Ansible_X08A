@@ -31,12 +31,23 @@
   changed_when: false
   failed_when: "'tw.com.daxia.virtualsoftkeys' not in check_virtual_key.stdout"
 
-- name: 检查电源优化是否已对关键应用关闭 (以 FSClock 为例)
+- name: 检查虚拟软键盘 (Virtual Soft Keys) 是否已激活 (无障碍服务已启用)
+  ansible.builtin.command: "{{ adb_cmd }} shell settings get secure enabled_accessibility_services"
+  register: check_virtual_key_active
+  changed_when: false
+  failed_when: "'tw.com.daxia.virtualsoftkeys' not in check_virtual_key_active.stdout"
+
+- name: 获取系统当前电源优化白名单
   ansible.builtin.command: "{{ adb_cmd }} shell dumpsys deviceidle whitelist"
   register: check_battery_opt
   changed_when: false
-  # 检查关键应用是否在白名单中（忽略电池优化）。如果需要检查多个，可以使用 loop 或者修改 failed_when 逻辑
-  failed_when: "'systems.sieber.fsclock' not in check_battery_opt.stdout"
+
+- name: 检查 apps/files/ 目录下所有已安装应用是否均已成功关闭电源优化
+  ansible.builtin.assert:
+    that:
+      - "item in check_battery_opt.stdout"
+    fail_msg: "【失败】应用 {{ item }} 未被成功加入电源优化白名单！"
+  loop: "{{ all_pkg_names }}"
 
 - name: 检查垃圾应用是否已被彻底卸载 (Bloatware)
   ansible.builtin.command: "{{ adb_cmd }} shell pm list packages {{ item }}"

@@ -78,3 +78,42 @@
     - settings put global auto_time 1
     - settings put global auto_time_zone 1
     - setprop persist.sys.timezone America/Vancouver
+
+# ---------------------------------------------------------
+# 提前提取需要安装的第三方应用包名，供后续各个 role 复用
+# ---------------------------------------------------------
+- name: 查找 apps 目录下所有的 APK 文件
+  delegate_to: localhost
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/roles/apps/files"
+    use_regex: true
+    patterns:
+      - '(?i)^.*\.apk$'
+  register: system_init_apks
+
+- name: 检查控制节点是否已安装 aapt
+  delegate_to: localhost
+  ansible.builtin.command: which aapt
+  register: aapt_check
+  changed_when: false
+  failed_when: false
+
+- name: 自动在控制节点安装 aapt 工具 (需要 sudo 权限)
+  delegate_to: localhost
+  become: true
+  ansible.builtin.apt:
+    name: aapt
+    state: present
+    update_cache: yes
+  when: aapt_check.rc != 0
+
+- name: 提取所有应用的包名 (需控制节点安装 aapt 工具)
+  delegate_to: localhost
+  ansible.builtin.command: "aapt dump badging '{{ item.path }}'"
+  loop: "{{ system_init_apks.files }}"
+  register: all_apk_badging
+  changed_when: false
+
+- name: 从 badging 输出中全局提取包名列表 (剔除重复项)
+  ansible.builtin.set_fact:
+    all_pkg_names: "{{ (all_apk_badging.results | default([])) | selectattr('stdout', 'defined') | map(attribute='stdout') | map('regex_findall', \"package: name='([^']+)'\") | flatten | unique | list }}"

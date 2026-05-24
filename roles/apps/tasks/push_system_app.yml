@@ -1,27 +1,18 @@
 ---
 # 统一处理所有 APK 文件的安装（包含系统应用推送和常规应用安装）
-- name: 查找所有需要处理的 APK 文件
-  delegate_to: localhost
-  ansible.builtin.find:
-    paths: "{{ role_path }}/files"
-    use_regex: yes
-    patterns:
-      - '(?i)^.*\.apk$'
-  register: all_apks
-
 - name: 将系统分区重新挂载为读写模式
   ansible.builtin.command: "{{ adb_cmd }} shell mount -o rw,remount /"
   ignore_errors: yes
 
 - name: 将 APK 文件直接推送到系统应用目录
   ansible.builtin.command: "{{ adb_cmd }} push '{{ item.path }}' '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
-  loop: "{{ all_apks.files }}"
-  when: not item.path is regex('(?i)(newpipe|fenix|launcher|vlc)')
+  loop: "{{ system_init_apks.files }}"
+  when: not item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
 
 - name: 为系统应用设置严格的权限
   ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
-  loop: "{{ all_apks.files }}"
-  when: not item.path is regex('(?i)(newpipe|fenix|launcher|vlc)')
+  loop: "{{ system_init_apks.files }}"
+  when: not item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
 
 - name: 软重启设备以加载新推送的系统应用
   ansible.builtin.shell: "{{ adb_cmd }} shell stop && {{ adb_cmd }} shell start"
@@ -49,5 +40,5 @@
 
 - name: 通过 ADB 将常规应用安装到设备用户分区 (仅处理指定应用)
   ansible.builtin.command: "{{ adb_cmd }} install -r '{{ item.path }}'"
-  loop: "{{ all_apks.files }}"
-  when: item.path is regex('(?i)(newpipe|fenix|launcher|vlc)')
+  loop: "{{ system_init_apks.files }}"
+  when: item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
