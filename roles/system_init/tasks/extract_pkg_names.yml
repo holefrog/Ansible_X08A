@@ -51,7 +51,3 @@
         pkg: "{{ (res.stdout | regex_findall(pkg_regex)) | first }}"
       {% endif %}
       {% endfor %}
-
-- name: 打印提取到的所有 APK 路径与包名
-  ansible.builtin.debug:
-    var: all_pkg_names
