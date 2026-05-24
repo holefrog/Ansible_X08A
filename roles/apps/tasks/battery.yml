@@ -3,10 +3,10 @@
 - name: 关闭所有应用的电源优化并解除后台运行限制
   delegate_to: localhost
   ansible.builtin.shell: |
-    {{ adb_cmd }} shell dumpsys deviceidle whitelist +{{ item }}
-    {{ adb_cmd }} shell cmd appops set {{ item }} RUN_IN_BACKGROUND allow
-    {{ adb_cmd }} shell cmd appops set {{ item }} RUN_ANY_IN_BACKGROUND allow
-  loop: "{{ all_pkg_names }}"
+    {{ adb_cmd }} shell dumpsys deviceidle whitelist +{{ item.pkg }}
+    {{ adb_cmd }} shell cmd appops set {{ item.pkg }} RUN_IN_BACKGROUND allow
+    {{ adb_cmd }} shell cmd appops set {{ item.pkg }} RUN_ANY_IN_BACKGROUND allow
+  loop: "{{ all_pkg_names | default([]) }}"
   changed_when: false
   failed_when: false
-  when: all_pkg_names | length > 0
+  when: (all_pkg_names | default([])) | length > 0

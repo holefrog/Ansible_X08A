@@ -6,13 +6,13 @@
 
 - name: 将 APK 文件直接推送到系统应用目录
   ansible.builtin.command: "{{ adb_cmd }} push '{{ item.path }}' '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
-  loop: "{{ system_init_apks.files }}"
-  when: not item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
+  loop: "{{ all_pkg_names | default([]) }}"
+  when: not item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
 
 - name: 为系统应用设置严格的权限
   ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
-  loop: "{{ system_init_apks.files }}"
-  when: not item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
+  loop: "{{ all_pkg_names | default([]) }}"
+  when: not item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
 
 - name: 软重启设备以加载新推送的系统应用
   ansible.builtin.shell: "{{ adb_cmd }} shell stop && {{ adb_cmd }} shell start"
@@ -40,5 +40,5 @@
 
 - name: 通过 ADB 将常规应用安装到设备用户分区 (仅处理指定应用)
   ansible.builtin.command: "{{ adb_cmd }} install -r '{{ item.path }}'"
-  loop: "{{ system_init_apks.files }}"
-  when: item.path is regex('(?i)(' ~ user_space_apps | join('|') ~ ')')
+  loop: "{{ all_pkg_names | default([]) }}"
+  when: item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')

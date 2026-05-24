@@ -47,7 +47,7 @@
           ;;
       esac
     done
-  loop: "{{ bloatware_apps }}"
+  loop: "{{ bloatware_apps | default([]) }}"
   register: uninstall_result
   changed_when: false
   failed_when: false
@@ -68,7 +68,7 @@
 
 - name: 通过 ADB 禁用顽固的系统应用
   ansible.builtin.command: "{{ adb_cmd }} shell pm disable-user --user 0 {{ item }}"
-  loop: "{{ disabled_apps }}"
+  loop: "{{ disabled_apps | default([]) }}"
   register: disable_results
   # pm disable-user 执行成功时，stdout 通常会包含 "Package <包名> new state: disabled-user"
   changed_when: "'disabled-user' in disable_results.stdout"

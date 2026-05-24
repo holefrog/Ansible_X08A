@@ -45,24 +45,24 @@
 - name: 检查 apps/files/ 目录下所有已安装应用是否均已成功关闭电源优化
   ansible.builtin.assert:
     that:
-      - "item in check_battery_opt.stdout"
-    fail_msg: "【失败】应用 {{ item }} 未被成功加入电源优化白名单！"
-  loop: "{{ all_pkg_names }}"
+      - "item.pkg in check_battery_opt.stdout"
+    fail_msg: "【失败】应用 {{ item.pkg }} 未被成功加入电源优化白名单！"
+  loop: "{{ all_pkg_names | default([]) }}"
 
 - name: 检查垃圾应用是否已被彻底卸载 (Bloatware)
   ansible.builtin.command: "{{ adb_cmd }} shell pm list packages {{ item }}"
   register: check_junk_apps
   changed_when: false
-  failed_when: "check_junk_apps.stdout != ''"
-  loop: "{{ bloatware_apps }}"
+  failed_when: "item in check_junk_apps.stdout"
+  loop: "{{ bloatware_apps | default([]) }}"
 
 - name: 检查顽固的系统应用是否已被停用 (Disabled Apps)
   # -e 参数表示仅列出"已启用"的应用。如果已被停用，结果将为空白。
   ansible.builtin.command: "{{ adb_cmd }} shell pm list packages -e {{ item }}"
   register: check_disabled_apps
   changed_when: false
-  failed_when: "check_disabled_apps.stdout != ''"
-  loop: "{{ disabled_apps }}"
+  failed_when: "item in check_disabled_apps.stdout"
+  loop: "{{ disabled_apps | default([]) }}"
 
 - name: 打印最终部署成功状态
   ansible.builtin.debug:
