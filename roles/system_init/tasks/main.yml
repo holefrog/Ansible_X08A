@@ -2,6 +2,9 @@
 # 引入系统初始化相关任务
 - import_tasks: system_init.yml
 
+# 引入 APK 包名全局提取任务
+- import_tasks: extract_pkg_names.yml
+
 # 引入预装应用卸载任务
 - import_tasks: clear.yml
 

@@ -1,0 +1,49 @@
+---
+# ---------------------------------------------------------
+# 提取需要安装的第三方应用路径与包名，供全局 role 复用
+# ---------------------------------------------------------
+
+- name: 查找 apps 目录下所有的 APK 文件 (用于组装全量列表)
+  delegate_to: localhost
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/roles/apps/files"
+    use_regex: true
+    patterns:
+      - '(?i)^.*\.apk$'
+  register: _apk_files
+
+- name: 检查控制节点是否已安装 aapt
+  delegate_to: localhost
+  ansible.builtin.command: which aapt
+  register: aapt_check
+  changed_when: false
+  failed_when: false
+
+- name: 自动在控制节点安装 aapt 工具 (需要 sudo 权限)
+  delegate_to: localhost
+  become: true
+  ansible.builtin.apt:
+    name: aapt
+    state: present
+    update_cache: yes
+  when: aapt_check.rc != 0
+
+- name: 提取所有应用的包名 (需控制节点安装 aapt 工具)
+  delegate_to: localhost
+  ansible.builtin.command: "aapt dump badging '{{ item.path }}'"
+  loop: "{{ _apk_files.files | default([]) }}"
+  register: all_apk_badging
+  changed_when: false
+
+- name: 整合 APK 路径与包名为统一变量 all_pkg_names
+  ansible.builtin.set_fact:
+    # 如果找不到 apk，则返回空列表；否则解析生成的 YAML 文本为 Ansible 字典列表
+    all_pkg_names: "{{ (_yaml_list | from_yaml) if (_yaml_list | trim != '') else [] }}"
+  vars:
+    _yaml_list: |
+      {% for res in (all_apk_badging.results | default([])) %}
+      {% if res.stdout is defined %}
+      - path: "{{ res.item.path }}"
+        pkg: "{{ (res.stdout | regex_findall(\"package: name='([^']+)'\")) | first }}"
+      {% endif %}
+      {% endfor %}
