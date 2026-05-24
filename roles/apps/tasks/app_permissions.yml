@@ -10,3 +10,9 @@
   changed_when: false
   failed_when: false
   when: (all_pkg_names | default([])) | length > 0
+
+- name: 阻止 VLC 抢占音频焦点 (防止弹窗打断 SB Player 导致其掉线退出)
+  delegate_to: localhost
+  ansible.builtin.command: "{{ adb_cmd }} shell cmd appops set org.videolan.vlc TAKE_AUDIO_FOCUS ignore"
+  changed_when: false
+  ignore_errors: true

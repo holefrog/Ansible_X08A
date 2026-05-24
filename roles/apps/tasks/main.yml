@@ -6,7 +6,7 @@
 
 - import_tasks: push_system_app.yml
 
-- import_tasks: battery.yml
+- import_tasks: app_permissions.yml
 
 - import_tasks: screensaver.yml
 

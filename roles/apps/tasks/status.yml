@@ -67,6 +67,12 @@
   failed_when: "item in check_disabled_apps.stdout"
   loop: "{{ disabled_apps | default([]) }}"
 
+- name: 检查 VLC 是否已成功屏蔽音频焦点抢占 (防止 SB Player 掉线)
+  ansible.builtin.command: "{{ adb_cmd }} shell cmd appops get org.videolan.vlc TAKE_AUDIO_FOCUS"
+  register: check_vlc_audio_focus
+  changed_when: false
+  failed_when: "'ignore' not in check_vlc_audio_focus.stdout"
+
 - name: 打印最终部署成功状态
   ansible.builtin.debug:
-    msg: "✅ 所有部署检查均已通过！Launcher、虚拟按键、屏保、电源优化及垃圾应用清理均已按预期生效。"
+    msg: "✅ 所有部署检查均已通过！Launcher、虚拟按键、屏保、电源优化、VLC 焦点控制及垃圾应用清理均已按预期生效。"
