@@ -86,6 +86,10 @@ ansible-playbook factory_reset.yml
 2. **安装常规应用**：将文件名**含有** `newpipe`、`firefox`、`launcher`、`virtualsoftkeys` 等的 APK 通过 `adb install -r` 安装到用户空间（`/data` 分区），方便日后独立更新。
 3. **配置屏幕保护程序**：将 `FSClock` 注册为系统屏保服务，设定为睡眠/底座模式触发，并将息屏超时设为 10 分钟（600000 毫秒）。
 4. **配置桌面启动器**：启用 `Niagara Launcher`（`bitpit.launcher`），将其设为系统默认桌面，并停用 `com.xiaomi.micolauncher` 防止冲突。
+
+> **⚠️ 为什么 VLC 和 Fenix (Firefox) 等应用必须安装到 `/data` 而不能推送到 `/system/app/`？**
+> 此类多媒体播放器和浏览器极度依赖底层 C/C++ 原生动态链接库（`.so` 文件，如 `libvlc.so`）。当使用 `adb install` 标准安装到用户空间时，系统的包管理器会自动解压并提取这些 `.so` 文件。但如果直接将 APK 推送到 `/system/app/`，Android 系统**不会自动提取解压**其中的原生库，应用启动时会因找不到依赖库而触发 `UnsatisfiedLinkError` 导致彻底崩溃。
+
 5. **推送 VPN 配置文件**：将 `AC3100.ovpn` 推送至设备的 `/storage/sdcard0/Download/` 目录。
 
 ### 4.5 VirtualSoftKeys (虚拟按键悬浮球) 配置
