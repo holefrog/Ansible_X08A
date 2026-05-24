@@ -5,14 +5,14 @@
   ignore_errors: yes
 
 - name: 将 APK 文件直接推送到系统应用目录
-  ansible.builtin.command: "{{ adb_cmd }} push '{{ item.path }}' '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
+  ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/{{ item.apk }}' '/system/app/{{ item.apk | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
   loop: "{{ all_pkg_names | default([]) }}"
-  when: not item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
+  when: not item.apk is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
 
 - name: 为系统应用设置严格的权限
-  ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 '/system/app/{{ item.path | basename | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
+  ansible.builtin.command: "{{ adb_cmd }} shell chmod 644 '/system/app/{{ item.apk | regex_replace('[^a-zA-Z0-9.]', '_') }}'"
   loop: "{{ all_pkg_names | default([]) }}"
-  when: not item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
+  when: not item.apk is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
 
 - name: 软重启设备以加载新推送的系统应用
   ansible.builtin.shell: "{{ adb_cmd }} shell stop && {{ adb_cmd }} shell start"
@@ -39,6 +39,6 @@
   changed_when: false
 
 - name: 通过 ADB 将常规应用安装到设备用户分区 (仅处理指定应用)
-  ansible.builtin.command: "{{ adb_cmd }} install -r '{{ item.path }}'"
+  ansible.builtin.command: "{{ adb_cmd }} install -r '{{ role_path }}/files/{{ item.apk }}'"
   loop: "{{ all_pkg_names | default([]) }}"
-  when: item.path is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')
+  when: item.apk is regex('(?i)(' ~ (user_space_apps | default(['__NON_EXISTENT__'])) | join('|') ~ ')')

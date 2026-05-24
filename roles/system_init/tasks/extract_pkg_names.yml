@@ -41,10 +41,11 @@
     all_pkg_names: "{{ (_yaml_list | from_yaml) if (_yaml_list | trim != '') else [] }}"
   vars:
     _yaml_list: |
+      {% set pkg_regex = "package: name='([^']+)'" %}
       {% for res in (all_apk_badging.results | default([])) %}
       {% if res.stdout is defined and 'package: name=' in res.stdout %}
-      - path: "{{ res.item.path }}"
-        pkg: "{{ (res.stdout | regex_findall(\"package: name='([^']+)'\")) | first }}"
+      - apk: "{{ res.item.path | basename }}"
+        pkg: "{{ (res.stdout | regex_findall(pkg_regex)) | first }}"
       {% endif %}
       {% endfor %}
 
