@@ -42,8 +42,12 @@
   vars:
     _yaml_list: |
       {% for res in (all_apk_badging.results | default([])) %}
-      {% if res.stdout is defined %}
+      {% if res.stdout is defined and 'package: name=' in res.stdout %}
       - path: "{{ res.item.path }}"
         pkg: "{{ (res.stdout | regex_findall(\"package: name='([^']+)'\")) | first }}"
       {% endif %}
       {% endfor %}
+
+- name: 打印提取到的所有 APK 路径与包名
+  ansible.builtin.debug:
+    var: all_pkg_names
