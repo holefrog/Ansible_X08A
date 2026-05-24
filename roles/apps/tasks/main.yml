@@ -3,15 +3,17 @@
 # Apps 角色主任务入口
 # ---------------------------------------------------------
 
-- include_tasks: push_system_app.yml
+- import_tasks: push_system_app.yml
 
-- include_tasks: battery.yml
+- import_tasks: battery.yml
 
-- include_tasks: screensaver.yml
+- import_tasks: screensaver.yml
 
-- include_tasks: launcher.yml
+- import_tasks: launcher.yml
 
-- include_tasks: virtual_soft_keys.yml
+- import_tasks: virtual_soft_keys.yml
+
+- import_tasks: push_ovpn.yml
 
 # 最终状态检查：验证所有关键部署结果
-- include_tasks: status.yml
+- import_tasks: status.yml

@@ -1,13 +1,12 @@
 ---
 # 推送 OpenVPN 配置文件到设备的 Download 目录
-
 - name: 检查本地是否存在 VPN 配置文件 (AC3100.ovpn)
   delegate_to: localhost
   ansible.builtin.stat:
     path: "{{ role_path }}/files/AC3100.ovpn"
   register: ovpn_file
 
-- name: 将 AC3100.ovpn 推送到 Download 目录
+- name: 推送 VPN 配置文件到 /storage/sdcard0/Download/
   ansible.builtin.command: "{{ adb_cmd }} push '{{ role_path }}/files/AC3100.ovpn' /storage/sdcard0/Download/"
   when: ovpn_file.stat.exists
   changed_when: true
