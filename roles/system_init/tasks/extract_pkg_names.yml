@@ -32,8 +32,11 @@
   delegate_to: localhost
   ansible.builtin.command: "aapt dump badging '{{ item.path }}'"
   loop: "{{ _apk_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
   register: all_apk_badging
   changed_when: false
+  no_log: true
 
 - name: 整合 APK 路径与包名为统一变量 all_pkg_names
   ansible.builtin.set_fact:

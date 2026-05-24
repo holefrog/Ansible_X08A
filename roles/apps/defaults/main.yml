@@ -4,6 +4,7 @@
 # ---------------------------------------------------------
 user_space_apps:
   - newpipe
+  - solidexplorer
   # - fenix            # 不常更新，已移交 /system/app 以节省 /data 空间
   # - launcher         # 移交 /system/app，可获得系统级防杀保活特权
   # - vlc              # 不常更新，已移交 /system/app 以节省 /data 空间
