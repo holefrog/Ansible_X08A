@@ -26,11 +26,10 @@
   failed_when: "'bitpit.launcher' not in check_launcher.stdout"
 
 - name: 检查虚拟软键盘 (Virtual Soft Keys) 应用是否已安装
-  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages YOUR_VIRTUAL_KEY_PACKAGE"
+  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages tw.com.daxia.virtualsoftkeys"
   register: check_virtual_key
   changed_when: false
-  # 请将 'YOUR_VIRTUAL_KEY_PACKAGE' 替换为您实际的虚拟按键包名
-  failed_when: "'YOUR_VIRTUAL_KEY_PACKAGE' not in check_virtual_key.stdout"
+  failed_when: "'tw.com.daxia.virtualsoftkeys' not in check_virtual_key.stdout"
 
 - name: 检查电源优化是否已对关键应用关闭 (以 FSClock 为例)
   ansible.builtin.command: "{{ adb_cmd }} shell dumpsys deviceidle whitelist"
@@ -39,14 +38,20 @@
   # 检查关键应用是否在白名单中（忽略电池优化）。如果需要检查多个，可以使用 loop 或者修改 failed_when 逻辑
   failed_when: "'systems.sieber.fsclock' not in check_battery_opt.stdout"
 
-- name: 检查垃圾应用是否已被成功卸载或禁用
-  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages JUNK_APP_PACKAGE"
+- name: 检查垃圾应用是否已被彻底卸载 (Bloatware)
+  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages {{ item }}"
   register: check_junk_apps
   changed_when: false
-  # 如果返回结果中仍然包含该垃圾应用的包名，则说明未成功卸载
-  # 请将 'JUNK_APP_PACKAGE' 替换为实际的垃圾应用包名
-  failed_when: "check_junk_apps.stdout != '' and 'JUNK_APP_PACKAGE' in check_junk_apps.stdout"
-  ignore_errors: false
+  failed_when: "check_junk_apps.stdout != ''"
+  loop: "{{ bloatware_apps }}"
+
+- name: 检查顽固的系统应用是否已被停用 (Disabled Apps)
+  # -e 参数表示仅列出"已启用"的应用。如果已被停用，结果将为空白。
+  ansible.builtin.command: "{{ adb_cmd }} shell pm list packages -e {{ item }}"
+  register: check_disabled_apps
+  changed_when: false
+  failed_when: "check_disabled_apps.stdout != ''"
+  loop: "{{ disabled_apps }}"
 
 - name: 打印最终部署成功状态
   ansible.builtin.debug:
