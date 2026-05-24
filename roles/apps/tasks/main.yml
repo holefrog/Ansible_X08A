@@ -1,9 +1,17 @@
 ---
-# 需要常规安装到用户空间 (/data) 而非系统分区的应用关键字列表
-user_space_apps:
-  - newpipe
-  - fenix
-  - launcher
-  - vlc
-  # - firefox          # 如果后续需要，可以随时取消注释添加到此处
-  # - virtualsoftkeys  # 如果后续需要，可以随时取消注释添加到此处
+# ---------------------------------------------------------
+# Apps 角色主任务入口
+# ---------------------------------------------------------
+
+- include_tasks: push_system_app.yml
+
+- include_tasks: battery.yml
+
+- include_tasks: screensaver.yml
+
+- include_tasks: launcher.yml
+
+- include_tasks: virtual_soft_keys.yml
+
+# 最终状态检查：验证所有关键部署结果
+- include_tasks: status.yml
